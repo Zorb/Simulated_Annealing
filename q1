@@ -1,0 +1,160 @@
+# coding: utf-8
+
+# In[2]:
+
+
+import numpy as np
+
+# import random
+
+
+# In[3]:
+
+
+file = open("C:\\Users\\OR1ON\\Desktop\\assets\\assets1.txt")
+
+lines = file.readlines()
+
+
+asset_num = np.int(lines[0].strip().split(' ')[0])
+RetAndDev = np.ones([asset_num, 2])
+for i in range(1, asset_num + 1): 
+    line = lines[i]
+    line = line.strip().split(' ')
+    ret = np.float64(line[0], dtype=np.float)
+    stddev = np.float64(line[1], dtype=np.float)
+    RetAndDev[i - 1, 0] = ret
+    RetAndDev[i - 1, 1] = stddev
+
+
+correlation = np.ones([asset_num, asset_num])
+for i in range(asset_num + 1, asset_num + 1 + int((1 + asset_num) * asset_num / 2)):
+    line = lines[i]
+    line = line.strip().split(' ')
+    correlation[np.int(line[0]) - 1, np.int(line[1]) - 1] = np.float64(line[2])
+    correlation[np.int(line[1]) - 1, np.int(line[0]) - 1] = np.float64(line[2])
+
+# In[4]:
+
+
+num_of_evaluation = asset_num * 1000
+num_of_random = 30
+num_to_select = 10
+Lambda = 0.5
+Min_buy = 0.01
+H = []
+bestS = {}
+
+max_f = 0
+max_R = 0
+max_CoVar = 0
+min_f = 10000000000000000000
+min_R = 0
+min_CoVar = 0
+
+R_list = []
+CoVar_list = []
+
+while num_of_evaluation:  # init
+    #     np.random.randint(1,assert_num)
+    #     print("num_to_select:", num_to_select)
+    if num_to_select * Min_buy > 1:  # infeasible when overall weight>1
+        continue
+
+    # S
+    items_tmp = np.zeros([asset_num])
+    items_tmp[:num_to_select] = 1
+    np.random.shuffle(items_tmp)
+    Q = []
+    for i in range(asset_num):
+        if items_tmp[i] == 1:
+            Q.append(i)
+    print("Q:", Q)
+
+    F = 1 - Min_buy * num_to_select
+    print("F:", F)
+
+    f = 100000000000
+    #     improved = False
+
+    while num_of_random:
+        np.random.seed(num_of_random)
+
+        print(num_of_evaluation, num_of_random)  # "evalNO randomNo:",
+
+        # s = np.random.randint(1, size=num_to_select)
+        #         print("s:", s)
+        s = np.random.random(10)
+        L = np.sum(s)
+        #         print("L:", L)
+        w = s * F / L + 0.01
+        #         print("w:", w)
+
+        index = 0
+        prop = np.zeros(asset_num)
+
+        for i in range(asset_num):
+            if (i in Q):
+                prop[i] = w[index]
+                index += 1
+            else:
+                prop[i] = 0
+
+        R = np.sum(prop * RetAndDev[:, 0])
+        print("R:", R)
+        CoVar = 0
+        for i in range(asset_num):
+            for j in range(asset_num):
+                tmp = prop[i] * prop[j] * correlation[i, j] * RetAndDev[i, 1] * RetAndDev[
+                    i, 1]  # covar  correlation[i, j]  Pij  RetAndDev[i, 0]   sdi  RetAndDev[i, 1]   sdj
+                CoVar += tmp
+        print("CoVar:", CoVar)
+
+        f = Lambda * CoVar - (1 - Lambda) * R  # feasible solution
+        print("R:", R)
+
+        R_list.append(R)
+        CoVar_list.append(CoVar)
+
+        if f > max_f:
+            max_f = f
+            max_R = R
+            max_CoVar = CoVar
+
+        if f < min_f:
+            min_f = f  
+            min_R = R
+            min_CoVar = CoVar
+            H.append({"asset": Q, "prop": s, "f": f})
+            bestS = {"asset": Q, "prop": s, "f": f}
+
+        num_of_random = num_of_random - 1
+
+    num_of_random = 30
+    num_of_evaluation = num_of_evaluation - 1
+
+# In[5]:
+
+
+bestS
+
+# In[4]:
+
+
+H
+
+# In[5]:
+
+
+R_list = np.array(R_list)
+CoVar_list = np.array(CoVar_list)
+
+# In[6]:
+
+
+R_list.max(), R_list.min(), R_list.mean(), R_list.std()
+
+# In[8]:
+
+
+CoVar_list.max(), CoVar_list.min(), CoVar_list.mean(), CoVar_list.std()
